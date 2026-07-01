@@ -39,14 +39,17 @@ By the end of this course you will be able to:
 
 ## 3. Setup (do once, before Lab 0)
 
-| Tool | Purpose | Verify |
-|------|---------|--------|
-| Terraform CLI (≥ 1.7) | Core engine | `terraform version` |
-| Azure CLI | Auth + subscription | `az login`, `az account show` |
-| VS Code + HashiCorp Terraform extension | Authoring | extension installed |
-| Git | Version control | `git --version` |
-| GitHub or Azure DevOps account | Day-2 pipelines | repo access |
-| tfsec **or** Checkov | Static analysis | `tfsec --version` |
+
+| Tool | Purpose | Verification | Links |
+|------|---------|--------------|-------|
+| Terraform CLI (≥ 1.7) | Core engine | `terraform version` | https://developer.hashicorp.com/terraform/downloads |
+| Azure CLI | Auth + subscription | `az login`, `az account show` | https://learn.microsoft.com/cli/azure/install-azure-cli |
+| VS Code | Code editor | `code --version` | https://code.visualstudio.com/download |
+| HashiCorp Terraform Extension for VS Code | Terraform authoring | Extension installed | https://marketplace.visualstudio.com/items?itemName=HashiCorp.terraform |
+| Git | Version control | `git --version` | https://git-scm.com/downloads |
+| tfsec | Terraform static analysis | `tfsec --version` | https://aquasecurity.github.io/tfsec/latest/guides/installation/ |
+| Checkov (alternative to tfsec) | Terraform static analysis | `checkov --version` | https://www.checkov.io/2.Basics/Installing%20Checkov.html |
+| GitHub or Azure DevOps account | Day-2 pipelines | repo access | |
 
 ### Sign in and select your subscription
 ```bash
