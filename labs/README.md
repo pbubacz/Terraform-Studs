@@ -14,6 +14,29 @@ them in order. Each lab folder has its own `README.md` (the lab guide), a
 | [03](lab-03-refactoring/README.md) | Safe refactoring (`import`/`moved`/`removed`) | 30m | ⭐⭐ | 01 |
 | [04](lab-04-expressions-functions/README.md) | Expressions, functions & dynamic blocks | 60m | ⭐⭐⭐ | 02 |
 | [05](lab-05-modules/README.md) | Author & compose a module | 45m | ⭐⭐ | 02, 04 |
+| [06](lab-06-cicd-oidc/README.md) | CI/CD with OIDC + shift-left (GitHub / Azure DevOps) | 60m | ⭐⭐⭐ | 04 |
+| [07](lab-07-avm-resource/README.md) | AVM storage account in the pipeline | 45m | ⭐⭐ | 06 |
+| [08](lab-08-multi-layer/README.md) | Multi-team, multi-layer architecture with AVM | 90m | ⭐⭐⭐ | 04, 06, 07 |
+| [09](lab-09-advanced-avm/README.md) | Advanced AVM & policy as code (optional) | 45m | ⭐⭐⭐ | 08 |
+
+### Day-2 / advanced track (labs 6–9)
+
+Labs 6–9 move from local authoring to **team delivery** on Azure:
+
+- **Lab 06 — CI/CD with OIDC + shift-left.** Automate Terraform with a secretless
+  pipeline (workload identity federation), static analysis (tfsec/Checkov),
+  `plan` on pull requests, and a gated `apply` on merge. Includes both a
+  **GitHub Actions** and an **Azure DevOps** path.
+- **Lab 07 — AVM storage account in the pipeline.** Add a second storage account
+  built from the **Azure Verified Module** (AzAPI-based, Terraform ≥ 1.10),
+  ship it through the same Lab 06 pipeline, and compare hand-written HCL vs. the
+  AVM's secure defaults.
+- **Lab 08 — Multi-team, multi-layer architecture.** Split platform and workload
+  into two state files; the workload consumes platform outputs via
+  `terraform_remote_state` for a clean one-way dependency.
+- **Lab 09 — Advanced AVM & policy as code (optional).** Harden a workload and
+  add an OPA/Conftest policy gate that evaluates the Terraform plan JSON before
+  `apply` — a preventive control in the pipeline.
 
 ## Environment setup
 

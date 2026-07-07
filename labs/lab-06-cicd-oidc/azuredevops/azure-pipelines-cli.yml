@@ -1,0 +1,143 @@
+# Azure DevOps pipeline for Terraform with OIDC — NO Marketplace extensions.
+#
+# Use this variant if you get:
+#   "A task is missing. The pipeline references a task called 'TerraformInstaller'
+#    / 'TerraformTaskV4'."
+# That error means the "Terraform" Marketplace extension isn't installed in your
+# org. This file avoids it by using only the built-in AzureCLI@2 task and it
+# installs the Terraform CLI itself (hosted agents don't ship Terraform).
+#
+# Auth: the 'azure-oidc' Workload Identity Federation service connection runs
+# `az login` via OIDC. Terraform then uses Azure CLI credentials for both the
+# azurerm provider (default) and the azurerm backend (use_azuread_auth = true in
+# backend.hcl). No secrets are stored.
+
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: [main]
+
+variables:
+  serviceConnection: 'azure-oidc'
+  workingDir: '.'
+  terraformVersion: '1.9.5'
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: validate
+        pool: { vmImage: 'ubuntu-latest' }
+        steps:
+          - script: |
+              set -e
+              curl -fsSL -o /tmp/terraform.zip \
+                "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+              unzip -o /tmp/terraform.zip -d /tmp/tfbin
+              echo "##vso[task.prependpath]/tmp/tfbin"
+              /tmp/tfbin/terraform version
+            displayName: 'Install Terraform'
+          - script: terraform fmt -check -recursive
+            displayName: 'Format check'
+            workingDirectory: $(workingDir)
+          - task: AzureCLI@2
+            displayName: 'Init + Validate'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              workingDirectory: $(workingDir)
+              addSpnToEnvironment: true
+              inlineScript: |
+                set -e
+                export ARM_USE_OIDC=true
+                export ARM_USE_AZUREAD=true
+                export ARM_CLIENT_ID="$servicePrincipalId"
+                export ARM_TENANT_ID="$tenantId"
+                export ARM_OIDC_TOKEN="$idToken"
+                export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+                terraform init -backend-config=backend.hcl
+                terraform validate
+          - script: |
+              curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+              tfsec $(workingDir)
+            displayName: 'Static analysis (tfsec)'
+
+  - stage: Plan
+    dependsOn: Validate
+    jobs:
+      - job: plan
+        pool: { vmImage: 'ubuntu-latest' }
+        steps:
+          - script: |
+              set -e
+              curl -fsSL -o /tmp/terraform.zip \
+                "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+              unzip -o /tmp/terraform.zip -d /tmp/tfbin
+              echo "##vso[task.prependpath]/tmp/tfbin"
+              /tmp/tfbin/terraform version
+            displayName: 'Install Terraform'
+          - task: AzureCLI@2
+            displayName: 'Plan'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              workingDirectory: $(workingDir)
+              addSpnToEnvironment: true
+              inlineScript: |
+                set -e
+                export ARM_USE_OIDC=true
+                export ARM_USE_AZUREAD=true
+                export ARM_CLIENT_ID="$servicePrincipalId"
+                export ARM_TENANT_ID="$tenantId"
+                export ARM_OIDC_TOKEN="$idToken"
+                export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+                terraform init -backend-config=backend.hcl
+                terraform plan -input=false -out=tfplan
+          - publish: $(workingDir)/tfplan
+            artifact: tfplan
+            displayName: 'Publish plan artifact'
+
+  - stage: Apply
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+    dependsOn: Plan
+    jobs:
+      - deployment: apply
+        pool: { vmImage: 'ubuntu-latest' }
+        environment: 'production'   # add approval checks in the ADO environment
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - download: current
+                  artifact: tfplan
+                - script: |
+                    set -e
+                    curl -fsSL -o /tmp/terraform.zip \
+                      "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+                    unzip -o /tmp/terraform.zip -d /tmp/tfbin
+                    echo "##vso[task.prependpath]/tmp/tfbin"
+                    /tmp/tfbin/terraform version
+                  displayName: 'Install Terraform'
+                - task: AzureCLI@2
+                  displayName: 'Apply'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    workingDirectory: $(workingDir)
+                    addSpnToEnvironment: true
+                    inlineScript: |
+                      set -e
+                      export ARM_USE_OIDC=true
+                      export ARM_USE_AZUREAD=true
+                      export ARM_CLIENT_ID="$servicePrincipalId"
+                      export ARM_TENANT_ID="$tenantId"
+                      export ARM_OIDC_TOKEN="$idToken"
+                      export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+                      terraform init -backend-config=backend.hcl
+                      # apply the exact plan produced by the Plan stage
+                      terraform apply -input=false "$(Pipeline.Workspace)/tfplan/tfplan"

@@ -1,0 +1,111 @@
+# Azure DevOps pipeline for Terraform with OIDC (workload identity federation).
+# Prereq: an ARM service connection named "azure-oidc" created with the
+# "Workload Identity federation" auth type (no secret stored).
+
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: [main]
+
+variables:
+  serviceConnection: 'azure-oidc'
+  workingDir: '.'   # Terraform code lives at the repo root (dedicated repo)
+  terraformVersion: '1.9.5'
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: validate
+        pool: { vmImage: 'ubuntu-latest' }
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: $(terraformVersion)
+          - script: terraform fmt -check -recursive
+            displayName: 'Format check'
+            workingDirectory: $(workingDir)
+          - task: TerraformTaskV4@4
+            displayName: 'Init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: $(workingDir)
+              backendServiceArm: $(serviceConnection)
+              backendAzureRmResourceGroupName: 'rg-tfcourse-ab-tfstate'
+              backendAzureRmStorageAccountName: 'sttfcourseabtfstate'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'lab06.tfstate'
+          - task: TerraformTaskV4@4
+            displayName: 'Validate'
+            inputs:
+              command: 'validate'
+              workingDirectory: $(workingDir)
+          - script: |
+              curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+              tfsec $(workingDir)
+            displayName: 'Static analysis (tfsec)'
+
+  - stage: Plan
+    dependsOn: Validate
+    jobs:
+      - job: plan
+        pool: { vmImage: 'ubuntu-latest' }
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: $(terraformVersion)
+          - task: TerraformTaskV4@4
+            inputs:
+              command: 'init'
+              workingDirectory: $(workingDir)
+              backendServiceArm: $(serviceConnection)
+              backendAzureRmResourceGroupName: 'rg-tfcourse-ab-tfstate'
+              backendAzureRmStorageAccountName: 'sttfcourseabtfstate'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'lab06.tfstate'
+          - task: TerraformTaskV4@4
+            inputs:
+              command: 'plan'
+              workingDirectory: $(workingDir)
+              environmentServiceNameAzureRM: $(serviceConnection)
+              commandOptions: '-out=tfplan'
+          - publish: $(workingDir)/tfplan
+            artifact: tfplan
+            displayName: 'Publish plan artifact'
+
+  - stage: Apply
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.Reason'], 'PullRequest'))
+    dependsOn: Plan
+    jobs:
+      - deployment: apply
+        pool: { vmImage: 'ubuntu-latest' }
+        environment: 'production'   # add approval checks in the ADO environment
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - download: current
+                  artifact: tfplan
+                - task: TerraformInstaller@1
+                  inputs:
+                    terraformVersion: $(terraformVersion)
+                - task: TerraformTaskV4@4
+                  inputs:
+                    command: 'init'
+                    workingDirectory: $(workingDir)
+                    backendServiceArm: $(serviceConnection)
+                    backendAzureRmResourceGroupName: 'rg-tfcourse-ab-tfstate'
+                    backendAzureRmStorageAccountName: 'sttfcourseabtfstate'
+                    backendAzureRmContainerName: 'tfstate'
+                    backendAzureRmKey: 'lab06.tfstate'
+                - task: TerraformTaskV4@4
+                  inputs:
+                    command: 'apply'
+                    workingDirectory: $(workingDir)
+                    environmentServiceNameAzureRM: $(serviceConnection)
+                    commandOptions: '$(Pipeline.Workspace)/tfplan/tfplan'
+                    environmentServiceNameAzureRM: $(serviceConnection)
+                    commandOptions: '-auto-approve'

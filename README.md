@@ -17,6 +17,10 @@ By the end of this course you will be able to:
 4. Manage remote state in Azure Blob Storage with locking.
 5. Refactor safely using `import`, `moved` and `removed`.
 6. Author, publish and consume modules using composition.
+7. Automate Terraform in CI/CD with secretless OIDC and shift-left scanning.
+8. Consume Azure Verified Modules (AVM) and compare them to hand-written HCL.
+9. Design multi-team, multi-layer architectures with remote-state contracts.
+10. Enforce governance with policy as code (OPA/Conftest) before `apply`.
 
 
 ---
@@ -33,6 +37,14 @@ By the end of this course you will be able to:
 | M5 | Refactoring: import / moved / removed | Lab 3 |
 | M6 | State management with Azure Blob | Lab 4 |
 | M7 | Dependencies & authoring modules | Lab 5 |
+
+### Day 2 — Delivery, AVM & governance
+| Module | Topic | Lab |
+|--------|-------|-----|
+| M8 | CI/CD with OIDC & shift-left scanning | Lab 6 |
+| M9 | Azure Verified Modules (AVM) in the pipeline | Lab 7 |
+| M10 | Multi-team, multi-layer architecture & remote state | Lab 8 |
+| M11 | Advanced AVM & policy as code (optional) | Lab 9 |
 
 
 ---
@@ -112,6 +124,10 @@ $env:TF_VAR_owner    = "ab@example.com"
 | 3 | Safe refactoring | ⭐⭐ | 1 |
 | 4 | Expressions, functions & dynamic blocks | ⭐⭐⭐ | 2 |
 | 5 | Author & compose a module | ⭐⭐ | 2, 4 |
+| 6 | CI/CD with OIDC + shift-left (GitHub / Azure DevOps) | ⭐⭐⭐ | 4 |
+| 7 | AVM storage account in the pipeline | ⭐⭐ | 6 |
+| 8 | Multi-team, multi-layer architecture with AVM | ⭐⭐⭐ | 4, 6, 7 |
+| 9 | Advanced AVM & policy as code (optional) | ⭐⭐⭐ | 8 |
 
 
 ---
@@ -155,6 +171,10 @@ tfsec .   |   checkov -d .      # static analysis (shift-left)
 | M3 | Variables/locals/outputs | Inputs, computed values, results. |
 | M4 | `for_each` vs `count` | Stable keys vs. index churn — prefer `for_each`. |
 | M5 | `import`/`moved`/`removed` | Change **state**, not Azure. |
+| M8 | OIDC / workload identity | Secretless federated auth for pipelines. |
+| M9 | AVM | Microsoft-owned, tested modules with secure defaults. |
+| M10 | `terraform_remote_state` | One-way output contract between layers. |
+| M11 | Policy as code | Preventive governance gate on the plan JSON. |
 
 
 > **AVM note:** current Azure Verified Modules take `parent_id` (the resource
